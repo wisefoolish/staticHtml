@@ -1194,7 +1194,8 @@ function MouseUp(event)
     <button id="restore" onclick="InitColorArray();main_func();">还原</button>
     <button id="dislocate" onclick="DislocateCube();main_func();">打乱</button>
     <canvas id="canvas" width="640" height="480" onmousemove="MouseMove(event)"
-    onmousedown="MouseDown(event)" onmouseup="MouseUp(event)">你的浏览器不支持canvas标签</canvas>
+    onmousedown="MouseDown(event)" onmouseup="MouseUp(event)"
+    ontouchstart="MouseDown(event)" ontouchmove="MouseMove(event)" ontouchend="MouseUp(event)">你的浏览器不支持canvas标签</canvas>
     <script>
         main_func();
     </script>
