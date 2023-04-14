@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .box{
+            position: absolute;
+            width: 100%;
+            height: 20%;
+            left: 0px;
+            top: 0px;
+        }
+        .position{
+            position: relative;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%,-50%);
+            font-size: large;
+            text-align: center;
+            color: black;
+        }
+        .frame{
+            position: absolute;
+            width: 80%;
+            height: 60%;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%,-50%);
+            border: 1px solid red;
+        }
+    </style>
+    <script>
+        function MouseMove(e)
+        {
+            var position=document.getElementsByClassName("position")[0];
+            position.innerText="X:"+e.clientX+" Y:"+e.clientY;
+        }
+        function MouseDown(e)
+        {
+            var position=document.getElementsByClassName("position")[0];
+            position.innerText="X:"+e.clientX+" Y:"+e.clientY;
+        }
+        function MouseUp(e)
+        {
+            var position=document.getElementsByClassName("position")[0];
+            position.innerText="X:"+e.clientX+" Y:"+e.clientY;
+        }
+    </script>
+</head>
+<body>
+    <div class="box">
+        <div class="position">
+            
+        </div>
+    </div>
+    <div class="frame" onmousemove="MouseMove(event)"
+    onmousedown="MouseDown(event)" onmouseup="MouseUp(event)"
+    ontouchstart="MouseDown(event)" ontouchmove="MouseMove(event)" ontouchend="MouseUp(event)">
+    </div>
+</body>
+</html>
