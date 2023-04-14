@@ -31,6 +31,9 @@
             transform: translate(-50%,-50%);
             border: 1px solid red;
         }
+        body{
+            overflow: hidden;
+        }
     </style>
     <script>
         function GetMousePos(cX,cY)
@@ -88,10 +91,5 @@
     onmousedown="MouseDown(event)" onmouseup="MouseUp(event)"
     ontouchstart="TouchStart(event)" ontouchmove="TouchMove(event)" ontouchend="TouchEnd(event)">
     </div>
-    <script>
-        document.addEventListener('touchmove', e => {
-        e.preventDefalut();
-        }, {passive: false});
-    </script>
 </body>
 </html>
