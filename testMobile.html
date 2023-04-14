@@ -33,35 +33,48 @@
         }
     </style>
     <script>
+        function GetMousePos(cX,cY)
+        {
+            var canvas=document.getElementsByClassName("frame")[0];
+            var xx=cX-(canvas.offsetLeft-canvas.clientWidth/2)+document.documentElement.scrollLeft+document.body.scrollLeft;
+            var yy=cY-(canvas.offsetTop-canvas.clientHeight/2)+document.documentElement.scrollTop+document.body.scrollTop;
+            return {xx:xx,yy:yy};
+        }
         function MouseMove(e)
         {
             var position=document.getElementsByClassName("position")[0];
-            position.innerText="X:"+e.clientX+" Y:"+e.clientY;
+            var pos=GetMousePos(e.clientX,e.clientY);
+            position.innerText="X:"+pos.xx+" Y:"+pos.yy;
         }
         function MouseDown(e)
         {
             var position=document.getElementsByClassName("position")[0];
-            position.innerText="X:"+e.clientX+" Y:"+e.clientY;
+            var pos=GetMousePos(e.clientX,e.clientY);
+            position.innerText="X:"+pos.xx+" Y:"+pos.yy;
         }
         function MouseUp(e)
         {
             var position=document.getElementsByClassName("position")[0];
-            position.innerText="X:"+e.clientX+" Y:"+e.clientY;
+            var pos=GetMousePos(e.clientX,e.clientY);
+            position.innerText="X:"+pos.xx+" Y:"+pos.yy;
         }
         function TouchStart(e)
         {
             var position=document.getElementsByClassName("position")[0];
-            position.innerText="X:"+e.touches[0].clientX+" Y:"+e.touches[0].clientY;
+            var pos=GetMousePos(e.touches[0].clientX,e.touches[0].clientY);
+            position.innerText="X:"+pos.xx+" Y:"+pos.yy;
         }
         function TouchMove(e)
         {
             var position=document.getElementsByClassName("position")[0];
-            position.innerText="X:"+e.touches[0].clientX+" Y:"+e.touches[0].clientY;
+            var pos=GetMousePos(e.touches[0].clientX,e.touches[0].clientY);
+            position.innerText="X:"+pos.xx+" Y:"+pos.yy;
         }
         function TouchEnd(e)
         {
             var position=document.getElementsByClassName("position")[0];
-            position.innerText="X:"+e.touches[0].clientX+" Y:"+e.touches[0].clientY;
+            var pos=GetMousePos(e.touches[0].clientX,e.touches[0].clientY);
+            position.innerText="X:"+pos.xx+" Y:"+pos.yy;
         }
     </script>
 </head>
@@ -75,5 +88,10 @@
     onmousedown="MouseDown(event)" onmouseup="MouseUp(event)"
     ontouchstart="TouchStart(event)" ontouchmove="TouchMove(event)" ontouchend="TouchEnd(event)">
     </div>
+    <script>
+        document.addEventListener('touchmove', e => {
+        e.preventDefalut();
+        }, {passive: false});
+    </script>
 </body>
 </html>
