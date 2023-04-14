@@ -48,6 +48,21 @@
             var position=document.getElementsByClassName("position")[0];
             position.innerText="X:"+e.clientX+" Y:"+e.clientY;
         }
+        function TouchStart(e)
+        {
+            var position=document.getElementsByClassName("position")[0];
+            position.innerText="X:"+e.touches[0].clientX+" Y:"+e.touches[0].clientY;
+        }
+        function TouchMove(e)
+        {
+            var position=document.getElementsByClassName("position")[0];
+            position.innerText="X:"+e.touches[0].clientX+" Y:"+e.touches[0].clientY;
+        }
+        function TouchEnd(e)
+        {
+            var position=document.getElementsByClassName("position")[0];
+            position.innerText="X:"+e.touches[0].clientX+" Y:"+e.touches[0].clientY;
+        }
     </script>
 </head>
 <body>
@@ -58,7 +73,7 @@
     </div>
     <div class="frame" onmousemove="MouseMove(event)"
     onmousedown="MouseDown(event)" onmouseup="MouseUp(event)"
-    ontouchstart="MouseDown(event)" ontouchmove="MouseMove(event)" ontouchend="MouseUp(event)">
+    ontouchstart="TouchStart(event)" ontouchmove="TouchMove(event)" ontouchend="TouchEnd(event)">
     </div>
 </body>
 </html>
