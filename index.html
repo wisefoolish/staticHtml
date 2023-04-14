@@ -1157,6 +1157,154 @@ function MouseUp(event)
     angle_finalrotate=0;
     main_func();
 }
+
+function GetTouchPos(event)
+{
+    var canvas=document.getElementById('canvas');
+    var xx=event.touches[0].clientX-(canvas.offsetLeft-canvas.clientWidth/2)+document.documentElement.scrollLeft+document.body.scrollLeft;
+    var yy=event.touches[0].clientY-(canvas.offsetTop-canvas.clientHeight/2)+document.documentElement.scrollTop+document.body.scrollTop;
+    return {xx:xx,yy:yy};
+}
+
+function TouchMove(event)
+{
+    var pos=GetTouchPos(event);
+    if(LButton==false)
+    {
+        //PutPixel(pos.x,pos.y,'#00ff00');
+    }
+    else
+    {
+        if(clickplane.surface==-1||clickplane.index==-1)
+        {
+            var angle=(pos.xx-mouse_place.xx)/GAMEPAD*Math.PI/3;
+            if(!isNaN(angle))
+                Vector_X=Rotate_Across_Hor(Vector_X,Vector_Y,angle);
+            angle=(pos.yy-mouse_place.yy)/GAMEPAD*Math.PI/3;
+            if(!isNaN(angle))
+                Vector_Y=Rotate_Across_Ver(Vector_X,Vector_Y,angle);
+            main_func();
+            mouse_place.xx=pos.xx;
+            mouse_place.yy=pos.yy;
+        }
+        else if(rotatepoint.axis==-1||rotatepoint.layer==-1)
+        {
+            var moveVec=Vector_X.MulTimes(pos.xx-mouse_place.xx).Add(Vector_Y.MulTimes(pos.yy-mouse_place.yy));   // 移动的三维向量
+            if(clickplane.surface==up||clickplane.surface==down)
+            {
+                if(Math.abs(moveVec.xx)>Math.abs(moveVec.yy)&&Math.abs(moveVec.xx)>GAMEPAD/3)
+                {
+                    rotatepoint.axis=straight;
+                    rotatepoint.layer=parseInt(clickplane.index/3);
+                }
+                else if(Math.abs(moveVec.yy)>Math.abs(moveVec.xx)&&Math.abs(moveVec.yy)>GAMEPAD/3)
+                {
+                    rotatepoint.axis=across;
+                    rotatepoint.layer=clickplane.index%3;
+                }
+            }
+            else if(clickplane.surface==left||clickplane.surface==right)
+            {
+                if(Math.abs(moveVec.yy)>Math.abs(moveVec.zz)&&Math.abs(moveVec.yy)>GAMEPAD/3)
+                {
+                    rotatepoint.axis=vertical;
+                    rotatepoint.layer=parseInt(clickplane.index/3);
+                }
+                else if(Math.abs(moveVec.zz)>Math.abs(moveVec.yy)&&Math.abs(moveVec.zz)>GAMEPAD/3)
+                {
+                    rotatepoint.axis=straight;
+                    rotatepoint.layer=clickplane.index%3;
+                }
+            }
+            else if(clickplane.surface==front||clickplane.surface==back)
+            {
+                if(Math.abs(moveVec.xx)>Math.abs(moveVec.zz)&&Math.abs(moveVec.xx)>GAMEPAD/3)
+                {
+                    rotatepoint.axis=vertical;
+                    rotatepoint.layer=parseInt(clickplane.index/3);
+                }
+                else if(Math.abs(moveVec.zz)>Math.abs(moveVec.xx)&&Math.abs(moveVec.zz)>GAMEPAD/3)
+                {
+                    rotatepoint.axis=across;
+                    rotatepoint.layer=clickplane.index%3;
+                }
+            }
+            var rotate_peri_vec3=new Vec3(0,0,0);
+            var add_vec3;
+            if(rotatepoint.axis==across)add_vec3=new Vec3(sidelength/2,0,0);
+            else if(rotatepoint.axis==straight)add_vec3=new Vec3(0,sidelength/2,0);
+            else if(rotatepoint.axis=vertical)add_vec3=new Vec3(0,0,sidelength/2);
+            rotate_peri_vec3=rotate_peri_vec3.Add(add_vec3.MulTimes(rotatepoint.layer-1));
+            rotate_peri_vec2=TransformVec3ToVec2(Vector_X,Vector_Y,rotate_peri_vec3).Add(pericenter);
+            begin_vec=(new Vec2(mouse_place.xx,mouse_place.yy)).Sub(rotate_peri_vec2);
+        }
+        else
+        {
+            // 可以优化，旋转中心点到起始点的向量为起始向量
+            // 根据旋转轴和layer求出旋转中心点，旋转中心点有7个
+            //var moveVec=Vector_X.MulTimes(pos.xx-mouse_place.xx).Add(Vector_Y.MulTimes(pos.yy-mouse_place.yy));   // 移动的三维向量
+            // 左是逆时针
+            var end_vec=(new Vec2(pos.xx,pos.yy)).Sub(rotate_peri_vec2);
+            var vector_z=Vector_X.CrossMul(Vector_Y);
+            if(end_vec.yy*begin_vec.xx-end_vec.xx*begin_vec.yy>0)   //在左边
+            {
+                angle_finalrotate=Math.acos(begin_vec.GetCosBetween(end_vec));
+            }
+            else  //在右边
+            {
+                angle_finalrotate=-Math.acos(begin_vec.GetCosBetween(end_vec));
+            }
+            if(rotatepoint.axis==across&&vector_z.xx<0)angle_finalrotate=-angle_finalrotate;
+            else if(rotatepoint.axis==straight&&vector_z.yy<0)angle_finalrotate=-angle_finalrotate;
+            else if(rotatepoint.axis==vertical&&vector_z.zz<0)angle_finalrotate=-angle_finalrotate;
+            rotate_main_func(angle_finalrotate);
+            //fill_color='#de1760';
+            //FillRectangle({xx:rotate_peri_vec2.xx,yy:rotate_peri_vec2.yy},{width:10,height:10});
+        }
+    }
+}
+
+function TouchStart(event)
+{
+    LButton=true;
+    mouse_place=GetTouchPos(event);
+    clickplane=GetPlaneIndex(Vector_X,Vector_Y,mouse_place.xx,mouse_place.yy,Vertex,pericenter);
+}
+
+function TouchEnd(event)
+{
+    LButton=false;
+    // 松开鼠标时更新颜色数组
+    // 根据angle值更新颜色数组
+    // 原先为了显示正确对法向量值为负数的旋转做了相反处理，这里应该还原角度
+    // 角度绝对是正确的
+    if(Math.abs(angle_finalrotate)>Math.PI/3)
+    {
+        if(angle_finalrotate>0)
+        {
+            UpdateColor_uclock(rotatepoint);
+        }
+        else if(angle_finalrotate<0)
+        {
+            UpdateColor_clock(rotatepoint);
+        }
+    }
+    if(Math.abs(angle_finalrotate)>Math.PI*2/3)
+    {
+        if(angle_finalrotate>0)
+        {
+            UpdateColor_uclock(rotatepoint);
+        }
+        else if(angle_finalrotate<0)
+        {
+            UpdateColor_clock(rotatepoint);
+        }
+    }
+    rotatepoint={axis:-1,layer:-1};
+    clickplane={index:-1,surface:-1};
+    angle_finalrotate=0;
+    main_func();
+}
     </script>
     <style>
 #canvas{
@@ -1194,7 +1342,8 @@ function MouseUp(event)
     <button id="restore" onclick="InitColorArray();main_func();">还原</button>
     <button id="dislocate" onclick="DislocateCube();main_func();">打乱</button>
     <canvas id="canvas" width="640" height="480" onmousemove="MouseMove(event)"
-    onmousedown="MouseDown(event)" onmouseup="MouseUp(event)">你的浏览器不支持canvas标签</canvas>
+    onmousedown="MouseDown(event)" onmouseup="MouseUp(event)"
+    ontouchstart="TouchStart(event)" ontouchmove="TouchMove(event)" ontouchend="TouchEnd(event)">你的浏览器不支持canvas标签</canvas>
     <script>
         main_func();
     </script>
