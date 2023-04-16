@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        #canvas{
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    border: 2px solid #0bacbf;
+}
+
+.msg_nums{
+    position: absolute;
+    right: 0%;
+    top: 0%;
+    width: 20%;
+    height: 10%;
+    background-color: gray;
+}
+.msg_nums:hover{
+    background-color: aquamarine;
+}
+
+.msg_side{
+    position: absolute;
+    right: 0%;
+    top: 10%;
+    width: 20%;
+    height: 10%;
+    background-color: gray;
+}
+.msg_side:hover{
+    background-color: aquamarine;
+}
+
+.msg_color{
+    position: absolute;
+    right: 0%;
+    top: 20%;
+    width: 20%;
+    height: 10%;
+    background-color: gray;
+}
+.msg_color:hover{
+    background-color: aquamarine;
+}
+
+.msg_text{
+    position: relative;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    text-align: center;
+    color: black;
+}
+    </style>
+    <script>
+        var background_color='#000000';
+var line_color='#ffffff';
+var fill_color='#ffffff';
+var isLPress=false;
+var isRPress=false;
+var ori_pos=Vec2(0,0);
+var DepthMap=[];
+const GAMEPAD=60;
+const cameraDis=1000;
+const up = 0;				// 魔尺块上面
+const down = 1;				// 魔尺块下面
+const front_1 = 2;			// 魔尺块前面某三角形 1
+const front_2 = 3;			// 魔尺块前面某三角形 2
+const left_1 = 4;			// 魔尺块左面某三角形 1
+const left_2 = 5;			// 魔尺块左面某三角形 2
+const right_1 = 6;			// 魔尺块右面某三角形 1
+const right_2 = 7;			// 魔尺块右面某三角形 2
+
+// 初始化画布
+function InitCanvas()
+{
+    var canvas=document.getElementById('canvas');
+    canvas.oncontextmenu=function(e){
+        e.preventDefault();
+    };
+    cleardevice();
+}
+
+function cleardevice()
+{
+    var canvas=document.getElementById('canvas');
+    var width=canvas.width;
+    var height=canvas.height;
+    fill_color=background_color;
+    FillRectangle({xx:width/2,yy:height/2},{width:width,height:height});
+}
+
+// 初始化深度图
+function InitDepthMap()
+{
+    var canvas=document.getElementById('canvas');
+    var width=canvas.width;
+    var height=canvas.height;
+    for(var i=0;i<height*width;i++)
+    {
+        DepthMap[i]=0.0;
+    }
+}
+
+// 画点
+function PutPixel(x,y,color)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.fillStyle=color;
+    hdc.fillRect(x,y,1,1);
+}
+
+// 画线
+function Line(begin,end)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.strokeStyle=line_color;
+    hdc.beginPath();
+    hdc.moveTo(begin.xx,begin.yy);
+    hdc.lineTo(end.xx,end.yy);
+    hdc.stroke();
+}
+
+// 画矩形
+function Rectangle(pericenter,size)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    var left=pericenter.xx-size.width/2;
+    var top=pericenter.yy-size.height/2;
+    var right=pericenter.xx+size.width/2;
+    var bottom=pericenter.yy+size.height/2;
+    hdc.strokeStyle=line_color;
+    hdc.beginPath();
+    hdc.moveTo(left,top);
+    hdc.lineTo(right,top);
+    hdc.lineTo(right,bottom);
+    hdc.lineTo(left,bottom);
+    hdc.lineTo(left,top);
+    hdc.stroke();
+}
+
+// 填充矩形
+function FillRectangle(pericenter,size)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    var left=pericenter.xx-size.width/2;
+    var top=pericenter.yy-size.height/2;
+    var right=pericenter.xx+size.width/2;
+    var bottom=pericenter.yy+size.height/2;
+    hdc.fillStyle=fill_color;
+    hdc.beginPath();
+    hdc.moveTo(left,top);
+    hdc.lineTo(right,top);
+    hdc.lineTo(right,bottom);
+    hdc.lineTo(left,bottom);
+    hdc.lineTo(left,top);
+    hdc.fill();
+}
+
+// 画圆形
+function Circle(pericenter,radius)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.strokeStyle=line_color;
+    hdc.beginPath();
+    hdc.arc(pericenter.xx,pericenter.yy,radius,0,2*Math.PI,true);
+    //hdc.closePath();
+    hdc.stroke();
+}
+
+// 填充圆形
+function FillCircle(pericenter,radius)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.fillStyle=fill_color;
+    hdc.beginPath();
+    hdc.arc(pericenter.xx,pericenter.yy,radius,0,2*Math.PI,true);
+    hdc.fill();
+}
+
+// 画多边形
+function Polygon(pointarr)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.strokeStyle=line_color;
+    hdc.beginPath();
+    hdc.moveTo(pointarr[0].xx,pointarr[0].yy);
+    for(var i=1;i<=pointarr.length;i++)
+    {
+        var temp=pointarr[i%pointarr.length];
+        hdc.lineTo(temp.xx,temp.yy);
+    }
+    hdc.stroke();
+}
+
+// 填充多边形
+function FillPolygon(pointarr)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.fillStyle=fill_color;
+    hdc.beginPath();
+    hdc.moveTo(pointarr[0].xx,pointarr[0].yy);
+    for(var i=1;i<=pointarr.length;i++)
+    {
+        var temp=pointarr[i%pointarr.length];
+        //console.log(temp);
+        hdc.lineTo(temp.xx,temp.yy);
+    }
+    hdc.fill();
+}
+
+// 二维向量
+function Vec2(xx,yy)
+{
+    this.xx=xx;
+    this.yy=yy;
+    this.GetLength=function()
+    {
+        return Math.sqrt(this.xx*this.xx+this.yy*this.yy);
+    }
+    this.Add=function(ano)
+    {
+        return new Vec2(ano.xx+this.xx,ano.yy+this.yy);
+    }
+    this.Sub=function(ano)
+    {
+        return new Vec2(this.xx-ano.xx,this.yy-ano.yy);
+    }
+    this.Mul=function(ano)
+    {
+        return this.xx*ano.xx+this.yy*ano.yy;
+    }
+    this.Div=function(times)
+    {
+        return new Vec2(this.xx/times,this.yy/times);
+    }
+    this.MulTimes=function(times)
+    {
+        return new Vec2(this.xx*times,this.yy*times);
+    }
+    this.GetCosBetween=function(ano)
+    {
+        return this.Mul(ano)/this.GetLength()/ano.GetLength();
+    }
+    this.GetRotateVec=function(angle)
+    {
+        return new Vec2(this.xx * Math.cos(angle) - this.yy * Math.sin(angle), this.yy * Math.cos(angle) + this.xx * Math.sin(angle)); 
+    }
+}
+
+// 三维向量
+function Vec3(xx,yy,zz)
+{
+    this.xx=xx;
+    this.yy=yy;
+    this.zz=zz;
+    this.GetLength=function()
+    {
+        return Math.sqrt(this.xx*this.xx+this.yy*this.yy+this.zz*this.zz);
+    }
+    this.Add=function(ano)
+    {
+        return new Vec3(ano.xx+this.xx,ano.yy+this.yy,ano.zz+this.zz);
+    }
+    this.Sub=function(ano)
+    {
+        return new Vec3(this.xx-ano.xx,this.yy-ano.yy,this.zz-ano.zz);
+    }
+    this.Mul=function(ano)
+    {
+        return this.xx*ano.xx+this.yy*ano.yy+this.zz*ano.zz;
+    }
+    this.Div=function(times)
+    {
+        return new Vec3(this.xx/times,this.yy/times,this.zz/times);
+    }
+    this.MulTimes=function(times)
+    {
+        return new Vec3(this.xx*times,this.yy*times,this.zz*times);
+    }
+    this.GetUnitVector=function()
+    {
+        return this.Div(this.GetLength());
+    }
+    this.GetCosBetween=function(ano)
+    {
+        return this.Mul(ano)/this.GetLength()/ano.GetLength();
+    }
+    this.GetProjection=function(ano)
+    {
+        return ano.MulTimes(this.Mul(ano)/ano.GetLength()/ano.GetLength());
+    }
+    this.GetProjectionLen=function(ano)
+    {
+        return this.Mul(ano)/ano.GetLength();
+    }
+    this.CrossMul=function(ano)
+    {
+        return new Vec3(this.yy*ano.zz-ano.yy*this.zz,this.zz*ano.xx-this.xx*ano.zz,this.xx*ano.yy-this.yy*ano.xx);
+    }
+    this.GetCopyVec3=function()
+    {
+        return new Vec3(this.xx,this.yy,this.zz);
+    }
+}
+
+// 将三维向量转化为二维向量
+function TransformVec3ToVec2(vector_x,vector_y,vec_3)
+{
+    return new Vec2(vec_3.GetLength()*vec_3.GetCosBetween(vector_x),vec_3.GetLength()*vec_3.GetCosBetween(vector_y));
+}
+
+// 横向旋转 X 轴
+function Rotate_Across_Hor(vector_x,vector_y,angle)
+{
+    var vector_z=vector_x.CrossMul(vector_y);
+    var result=vector_x.MulTimes(Math.cos(angle)).Add(vector_z.MulTimes(Math.sin(angle)));
+    return result.GetUnitVector();
+}
+
+// 竖向旋转 Y 轴
+function Rotate_Across_Ver(vector_x,vector_y,angle)
+{
+    var vector_z=vector_y.CrossMul(vector_x);
+    var result=vector_y.MulTimes(Math.cos(angle)).Sub(vector_z.MulTimes(Math.sin(angle)));
+    return result.GetUnitVector();
+}
+
+// 获取鼠标位置
+function GetMousePos(event)
+{
+    var canvas=document.getElementById('canvas');
+    var xx=event.clientX-(canvas.offsetLeft-canvas.clientWidth/2)+document.documentElement.scrollLeft+document.body.scrollLeft;
+    var yy=event.clientY-(canvas.offsetTop-canvas.clientHeight/2)+document.documentElement.scrollTop+document.body.scrollTop;
+    return {xx:xx,yy:yy};
+}
+
+// 鼠标移动时的操作
+function MouseMove(event)
+{
+    var pos=GetMousePos(event);
+    if(isLPress)
+    {
+        if(selectBlock==-1)
+        {
+            var angle=(pos.xx-ori_pos.xx)/GAMEPAD*Math.PI/3;
+            if(!isNaN(angle))
+                XAcross=Rotate_Across_Hor(XAcross,YAcross,angle);
+            angle=(pos.yy-ori_pos.yy)/GAMEPAD*Math.PI/3;
+            if(!isNaN(angle))
+                YAcross=Rotate_Across_Ver(XAcross,YAcross,angle);
+            ori_pos=pos;
+        }
+        else
+        {
+            var extent = new Vec2(pos.xx-ori_pos.xx,pos.yy-ori_pos.yy);
+			var angle = extent.yy / GAMEPAD * Math.PI / 3;
+			tempMr = mr.TempRotate(selectBlock, true, angle);
+        }
+    }
+    else if(isRPress)
+    {
+        if(selectBlock!=-1)
+        {
+            var extent = new Vec2(pos.xx-ori_pos.xx,pos.yy-ori_pos.yy);
+			var angle = extent.yy / GAMEPAD * Math.PI / 3;
+			tempMr = mr.TempRotate(selectBlock, false, angle);
+        }
+    }
+    cleardevice()
+    InitDepthMap();
+    if(selectBlock==-1)
+    DrawMagicRuler(mr,XAcross,YAcross,pericenter);
+    else
+    DrawMagicRuler(tempMr,XAcross,YAcross,pericenter);
+}
+
+// 鼠标左键点击时的操作
+function MouseDown(event)
+{
+    ori_pos=GetMousePos(event);
+    if(event.button==0)     // 左键按下
+    {
+        isLPress=true;
+        selectBlock = GetSelectBlock(mr, XAcross, YAcross, pericenter, ori_pos);
+        if(selectBlock!=-1)
+        tempMr = mr.TempRotate(selectBlock, true, 0);
+    }
+    else if(event.button==2)        // 右键按下
+    {
+        isRPress=true;
+        selectBlock = GetSelectBlock(mr, XAcross, YAcross, pericenter, ori_pos);
+        if(selectBlock!=-1)
+        tempMr = mr.TempRotate(selectBlock, false, 0);
+    }
+}
+
+// 鼠标左键抬起时的操作
+function MouseUp(event)
+{
+    if(selectBlock!=-1)
+    {
+        var pos=GetMousePos(event);
+        var extent = new Vec2(pos.xx-ori_pos.xx,pos.yy-ori_pos.yy);
+		var angle = extent.yy / GAMEPAD * Math.PI / 3;
+        var k = parseInt(angle / (Math.PI * 2) + 1) - 1;
+		angle = angle-k * 2 * Math.PI;
+        if (angle > Math.PI / 3 && angle < Math.PI * 2 / 3)
+        {
+            mr.Rotate(selectBlock, isLPress, Math.PI / 2);
+        }
+        else if (angle > Math.PI * 5 / 6 && angle < Math.PI * 7 / 6)
+        {
+            mr.Rotate(selectBlock, isLPress, Math.PI);
+        }
+        else if (angle > Math.PI * 4 / 3 && angle < Math.PI * 5 / 3)
+        {
+            mr.Rotate(selectBlock, isLPress, Math.PI * 3 / 2);
+        }
+    }
+    isLPress=false;
+    isRPress=false;
+    selectBlock=-1;
+    cleardevice()
+    InitDepthMap();
+    DrawMagicRuler(mr,XAcross,YAcross,pericenter);
+}
+
+// 鼠标滚轮操作
+function MouseWheel(event)
+{
+    console.log(event.wheelDelta,event.detail);
+    return false;
+}
+
+function Vertex2D(pos,depth,R,G,B)
+{
+    this.pos=pos;
+    this.R=R;
+    this.G=G;
+    this.B=B;
+    this.depth=depth;
+}
+
+function Vertex3D(pos,R,G,B)
+{
+    this.pos=pos;
+    this.R=R;
+    this.G=G;
+    this.B=B;
+    this.GetDepth=function(XAcross,YAcross,dis)
+    {
+        var ZAcross=XAcross.CrossMul(YAcross);
+        var ori = this.pos.Mul(ZAcross) / ZAcross.GetLength();
+	    return dis - ori;
+    }
+    this.GetCopyV3D=function()
+    {
+        return new Vertex3D(this.pos,this.R,this.G,this.B);
+    }
+}
+
+function TransfromV3DToV2D(vertex3d,XAcross,YAcross,pericenter,dis)
+{
+    return new Vertex2D(TransformVec3ToVec2(XAcross,YAcross,vertex3d.pos).Add(pericenter),vertex3d.GetDepth(XAcross,YAcross,dis),
+    vertex3d.R,vertex3d.G,vertex3d.B);
+}
+
+function TransformRGBToStr(R,G,B)
+{
+    var RS=R.toString(16);
+    if(RS.length<2)RS="0"+RS;
+    var GS=G.toString(16);
+    if(GS.length<2)GS="0"+GS;
+    var BS=B.toString(16);
+    if(BS.length<2)BS="0"+BS;
+    return "#"+RS+GS+BS;
+}
+
+function RotateVec3(vertex, XAcross, YAcross, angle)
+{
+	var ZAcross = XAcross.CrossMul(YAcross).GetUnitVector();
+	var Vert = vertex.GetProjection(ZAcross);
+	var length = vertex.GetLength();
+	var proVec = new Vec2(length * vertex.GetCosBetween(XAcross), length * vertex.GetCosBetween(YAcross));
+	proVec = proVec.GetRotateVec(angle);
+	return Vert.Add(XAcross.MulTimes(proVec.xx).Add(YAcross.MulTimes(proVec.yy)));
+}
+
+function Triangle3D(a,b,c)
+{
+    this.vertex=[a,b,c];
+    this.Rotate=function(XAcross, YAcross, angle)
+	{
+		this.vertex[0].pos = RotateVec3(this.vertex[0].pos, XAcross, YAcross, angle);
+		this.vertex[1].pos = RotateVec3(this.vertex[1].pos, XAcross, YAcross, angle);
+		this.vertex[2].pos = RotateVec3(this.vertex[2].pos, XAcross, YAcross, angle);
+	}
+    this.GetCopyT3D=function()
+    {
+        return new Triangle3D(this.vertex[0].GetCopyV3D(),this.vertex[1].GetCopyV3D(),this.vertex[2].GetCopyV3D());
+    }
+}
+
+function max(a,b)
+{
+    if(a>b)return a;
+    return b;
+}
+
+function min(a,b)
+{
+    if(a>b)return b;
+    return a;
+}
+
+function Triangle2D(a,b,c)
+{
+    this.vertex=[a,b,c];
+    this.Draw=function()
+    {
+        //console.log(this.p1.depth,this.p2.depth,this.p3.depth);
+        var canvas=document.getElementById('canvas');
+        var w=canvas.width;
+        var h=canvas.height;
+        var vertex=this.vertex;
+        var index=[0, 1, 2];
+		if (vertex[index[0]].pos.yy > vertex[index[1]].pos.yy)
+        {
+            var temp_I=index[0];
+            index[0]=index[1];
+            index[1]=temp_I;
+        }
+		if (vertex[index[0]].pos.yy > vertex[index[2]].pos.yy)
+        {
+            var temp_I=index[0];
+            index[0]=index[2];
+            index[2]=temp_I;
+        }
+		if (vertex[index[1]].pos.yy > vertex[index[2]].pos.yy)
+        {
+            var temp_I=index[1];
+            index[1]=index[2];
+            index[2]=temp_I;
+        }
+		var vec_side_1 = vertex[index[1]].pos.Sub(vertex[index[0]].pos);
+		var vec_side_2 = vertex[index[2]].pos.Sub(vertex[index[0]].pos);
+		// 0~1
+		for (var i = parseInt(vertex[index[0]].pos.yy); i < parseInt(vertex[index[1]].pos.yy); i++)
+		{
+			if (i < 0 || i >= h) continue;
+			var t_b = (i - parseInt(vertex[index[0]].pos.yy)) / (parseInt(vertex[index[1]].pos.yy) - parseInt(vertex[index[0]].pos.yy));
+			var t_c = (i - parseInt(vertex[index[0]].pos.yy)) / (parseInt(vertex[index[2]].pos.yy) - parseInt(vertex[index[0]].pos.yy));
+			var x_b = vertex[index[0]].pos.xx + (vertex[index[1]].pos.xx - vertex[index[0]].pos.xx) * t_b;
+			var x_c = vertex[index[0]].pos.xx + (vertex[index[2]].pos.xx - vertex[index[0]].pos.xx) * t_c;
+			if (x_b > x_c)
+            {
+                var temp_X=x_b;
+                x_b=x_c;
+                x_c=temp_X;
+            }
+			for (var j = parseInt(x_b); j < parseInt(x_c); j++)
+			{
+				if (j < 0 || j >= w) continue;
+				var vec_1 = (new Vec2(j, i));
+                vec_1=vec_1.Sub(vertex[index[0]].pos);
+				// vec_side_1*m+vec_side_2*n=vec_1
+				var n = (vec_1.xx * vec_side_1.yy - vec_1.yy * vec_side_1.xx) / (vec_side_2.xx * vec_side_1.yy - vec_side_2.yy * vec_side_1.xx);
+				var m = (vec_1.yy * vec_side_2.xx - vec_1.xx * vec_side_2.yy) / (vec_side_2.xx * vec_side_1.yy - vec_side_2.yy * vec_side_1.xx);
+				var depth = vertex[index[0]].depth + (vertex[index[1]].depth - vertex[index[0]].depth) * m + (vertex[index[2]].depth - vertex[index[0]].depth) * n;
+				if (depth < DepthMap[i*w+j] || depth>0 && DepthMap[i*w+j] <= 0)
+				{
+					var R = max(min(vertex[index[0]].R + (vertex[index[1]].R - vertex[index[0]].R) * m + (vertex[index[2]].R - vertex[index[0]].R) * n, 255), 0);
+					var G = max(min(vertex[index[0]].G + (vertex[index[1]].G - vertex[index[0]].G) * m + (vertex[index[2]].G - vertex[index[0]].G) * n, 255), 0);
+					var B = max(min(vertex[index[0]].B + (vertex[index[1]].B - vertex[index[0]].B) * m + (vertex[index[2]].B - vertex[index[0]].B) * n, 255), 0);
+					var col=TransformRGBToStr(parseInt(R),parseInt(G),parseInt(B));
+                    PutPixel(j,i,col);
+					DepthMap[i*w+j] = depth;
+				}
+			}
+		}
+		// 1~2
+		for (var i = parseInt(vertex[index[1]].pos.yy); i < parseInt(vertex[index[2]].pos.yy); i++)
+		{
+			if (i < 0 || i >= h) continue;
+			var t_b = (i - parseInt(vertex[index[1]].pos.yy)) / (parseInt(vertex[index[2]].pos.yy) - parseInt(vertex[index[1]].pos.yy));
+			var t_c = (i - parseInt(vertex[index[0]].pos.yy)) / (parseInt(vertex[index[2]].pos.yy) - parseInt(vertex[index[0]].pos.yy));
+			var x_b = vertex[index[1]].pos.xx + (vertex[index[2]].pos.xx - vertex[index[1]].pos.xx) * t_b;
+			var x_c = vertex[index[0]].pos.xx + (vertex[index[2]].pos.xx - vertex[index[0]].pos.xx) * t_c;
+			if (x_b > x_c)
+            {
+                var temp_X=x_b;
+                x_b=x_c;
+                x_c=temp_X;
+            }
+			for (var j = parseInt(x_b); j < parseInt(x_c); j++)
+			{
+				if (j < 0 || j >= w) continue;
+				var vec_1 = (new Vec2(j, i)).Sub(vertex[index[0]].pos);
+				// vec_side_1*m+vec_side_2*n=vec_1
+				var n = (vec_1.xx * vec_side_1.yy - vec_1.yy * vec_side_1.xx) / (vec_side_2.xx * vec_side_1.yy - vec_side_2.yy * vec_side_1.xx);
+				var m = (vec_1.yy * vec_side_2.xx - vec_1.xx * vec_side_2.yy) / (vec_side_2.xx * vec_side_1.yy - vec_side_2.yy * vec_side_1.xx);
+				var depth = vertex[index[0]].depth + (vertex[index[1]].depth - vertex[index[0]].depth) * m + (vertex[index[2]].depth - vertex[index[0]].depth) * n;
+				if (depth < DepthMap[i*w+j] || depth>0 && DepthMap[i*w+j] <= 0)
+				{
+					var R = max(min(vertex[index[0]].R + (vertex[index[1]].R - vertex[index[0]].R) * m + (vertex[index[2]].R - vertex[index[0]].R) * n, 255), 0);
+					var G = max(min(vertex[index[0]].G + (vertex[index[1]].G - vertex[index[0]].G) * m + (vertex[index[2]].G - vertex[index[0]].G) * n, 255), 0);
+					var B = max(min(vertex[index[0]].B + (vertex[index[1]].B - vertex[index[0]].B) * m + (vertex[index[2]].B - vertex[index[0]].B) * n, 255), 0);
+					var col=TransformRGBToStr(parseInt(R),parseInt(G),parseInt(B));
+                    PutPixel(j,i,col);
+					DepthMap[i * w + j] = depth;
+				}
+			}
+		}
+    }
+    this.isInTriangle=function(pos)
+    {
+        var vec_side_1 = this.vertex[1].pos.Sub(this.vertex[0].pos);
+		var vec_side_2 = this.vertex[2].pos.Sub(this.vertex[0].pos);
+		var vec_1 = new Vec2(pos.xx-this.vertex[0].pos.xx,pos.yy-this.vertex[0].pos.yy);
+		// vec_side_1*m+vec_side_2*n=vec_1
+		var n = (vec_1.xx * vec_side_1.yy - vec_1.yy * vec_side_1.xx) / (vec_side_2.xx * vec_side_1.yy - vec_side_2.yy * vec_side_1.xx);
+		var m = (vec_1.yy * vec_side_2.xx - vec_1.xx * vec_side_2.yy) / (vec_side_2.xx * vec_side_1.yy - vec_side_2.yy * vec_side_1.xx);
+		if (n >= 0 && m >= 0 && n + m <= 1)return true;
+		return false;
+    }
+    this.GetDepth=function(pos)
+	{
+		var vec_side_1 = this.vertex[1].pos.Sub(this.vertex[0].pos);
+		var vec_side_2 = this.vertex[2].pos.Sub(this.vertex[0].pos);
+		var vec_1 = new Vec2(pos.xx-this.vertex[0].pos.xx,pos.yy-this.vertex[0].pos.yy);
+		// vec_side_1*m+vec_side_2*n=vec_1
+		var n = (vec_1.xx * vec_side_1.yy - vec_1.yy * vec_side_1.xx) / (vec_side_2.xx * vec_side_1.yy - vec_side_2.yy * vec_side_1.xx);
+		var m = (vec_1.yy * vec_side_2.xx - vec_1.xx * vec_side_2.yy) / (vec_side_2.xx * vec_side_1.yy - vec_side_2.yy * vec_side_1.xx);
+		return this.vertex[0].depth + (this.vertex[1].depth - this.vertex[0].depth) * m + (this.vertex[1].depth - this.vertex[0].depth) * n;
+	}
+}
+
+function TransformTri3DToTri2D(tri,XAcross,YAcross,pericenter)
+{
+    return new Triangle2D(TransfromV3DToV2D(tri.vertex[0],XAcross,YAcross,pericenter,cameraDis),
+    TransfromV3DToV2D(tri.vertex[1],XAcross,YAcross,pericenter,cameraDis),
+    TransfromV3DToV2D(tri.vertex[2],XAcross,YAcross,pericenter,cameraDis));
+}
+
+function sqrt(num)
+{
+    return Math.sqrt(num);
+}
+
+function BlockMagicRuler(side,isReverse,pos,anchor,R,G,B)
+{
+    this.pos=pos;
+    this.anchor=anchor;
+    this.surface=[new Triangle3D(0,0,0),new Triangle3D(0,0,0),new Triangle3D(0,0,0),new Triangle3D(0,0,0),new Triangle3D(0,0,0),
+        new Triangle3D(0,0,0),new Triangle3D(0,0,0),new Triangle3D(0,0,0)];
+    if (!isReverse)
+	{
+		this.surface[up].vertex[0] = new Vertex3D(new Vec3(-side / sqrt(2), 0, side / 2), R, G, B);
+		this.surface[up].vertex[1] = new Vertex3D(new Vec3(side / sqrt(2), 0, side / 2), R, G, B);
+		this.surface[up].vertex[2] = new Vertex3D(new Vec3(0, side / sqrt(2), side / 2), R, G, B);
+
+        this.surface[down].vertex[2] = new Vertex3D(new Vec3(-side / sqrt(2), 0, -side / 2), R, G, B);
+		this.surface[down].vertex[1] = new Vertex3D(new Vec3(side / sqrt(2), 0, -side / 2), R, G, B);
+		this.surface[down].vertex[0] = new Vertex3D(new Vec3(0, side / sqrt(2), -side / 2), R, G, B);
+		
+		this.surface[left_1].vertex[0] = new Vertex3D(new Vec3(0, side / sqrt(2), -side / 2), 64, 64, 64);
+		this.surface[left_1].vertex[1] = new Vertex3D(new Vec3(-side / sqrt(2), 0, -side / 2), 64, 64, 64);
+		this.surface[left_1].vertex[2] = new Vertex3D(new Vec3(0, side / sqrt(2), side / 2), 64, 64, 64);
+		
+		this.surface[left_2].vertex[2] = new Vertex3D(new Vec3(-side / sqrt(2), 0, side / 2), 64, 64, 64);
+		this.surface[left_2].vertex[1] = new Vertex3D(new Vec3(-side / sqrt(2), 0, -side / 2), 64, 64, 64);
+		this.surface[left_2].vertex[0] = new Vertex3D(new Vec3(0, side / sqrt(2), side / 2), 64, 64, 64);
+		
+		this.surface[right_1].vertex[0] = new Vertex3D(new Vec3(0, side / sqrt(2), side / 2), 64, 64, 64);
+		this.surface[right_1].vertex[1] = new Vertex3D(new Vec3(side / sqrt(2), 0, side / 2), 64, 64, 64);
+		this.surface[right_1].vertex[2] = new Vertex3D(new Vec3(0, side / sqrt(2), -side / 2), 64, 64, 64);
+		
+		this.surface[right_2].vertex[0] = new Vertex3D(new Vec3(side / sqrt(2), 0, -side / 2), 64, 64, 64);
+		this.surface[right_2].vertex[1] = new Vertex3D(new Vec3(0, side / sqrt(2), -side / 2), 64, 64, 64);
+		this.surface[right_2].vertex[2] = new Vertex3D(new Vec3(side / sqrt(2), 0, side / 2), 64, 64, 64);
+		
+		this.surface[front_1].vertex[0] = new Vertex3D(new Vec3(-side / sqrt(2), 0, -side / 2), 255, 255, 255);
+		this.surface[front_1].vertex[1] = new Vertex3D(new Vec3(side / sqrt(2), 0, -side / 2), 255, 255, 255);
+		this.surface[front_1].vertex[2] = new Vertex3D(new Vec3(-side / sqrt(2), 0, side / 2), 255, 255, 255);
+		
+		this.surface[front_2].vertex[0] = new Vertex3D(new Vec3(side / sqrt(2), 0, side / 2), 255, 255, 255);
+		this.surface[front_2].vertex[1] = new Vertex3D(new Vec3(-side / sqrt(2), 0, side / 2), 255, 255, 255);
+		this.surface[front_2].vertex[2] = new Vertex3D(new Vec3(side / sqrt(2), 0, -side / 2), 255, 255, 255);
+	}
+	else
+	{
+		this.surface[up].vertex[2] = new Vertex3D(new Vec3(-side / sqrt(2), 0, side / 2), 255, 255, 255);
+		this.surface[up].vertex[1] = new Vertex3D(new Vec3(side / sqrt(2), 0, side / 2), 255, 255, 255);
+		this.surface[up].vertex[0] = new Vertex3D(new Vec3(0, -side / sqrt(2), side / 2), 255, 255, 255);
+
+		this.surface[down].vertex[0] = new Vertex3D(new Vec3(-side / sqrt(2), 0, -side / 2), 255, 255, 255);
+		this.surface[down].vertex[1] = new Vertex3D(new Vec3(side / sqrt(2), 0, -side / 2), 255, 255, 255);
+		this.surface[down].vertex[2] = new Vertex3D(new Vec3(0, -side / sqrt(2), -side / 2), 255, 255, 255);
+
+		this.surface[left_1].vertex[0] = new Vertex3D(new Vec3(0, -side / sqrt(2), side / 2), 64, 64, 64);
+		this.surface[left_1].vertex[1] = new Vertex3D(new Vec3(-side / sqrt(2), 0, side / 2), 64, 64, 64);
+		this.surface[left_1].vertex[2] = new Vertex3D(new Vec3(0, -side / sqrt(2), -side / 2), 64, 64, 64);
+
+		this.surface[left_2].vertex[0] = new Vertex3D(new Vec3(-side / sqrt(2), 0, -side / 2), 64, 64, 64);
+		this.surface[left_2].vertex[1] = new Vertex3D(new Vec3(0, -side / sqrt(2), -side / 2), 64, 64, 64);
+		this.surface[left_2].vertex[2] = new Vertex3D(new Vec3(-side / sqrt(2), 0, side / 2), 64, 64, 64);
+
+		this.surface[right_1].vertex[0] = new Vertex3D(new Vec3(0, -side / sqrt(2), -side / 2), 64, 64, 64);
+		this.surface[right_1].vertex[1] = new Vertex3D(new Vec3(side / sqrt(2), 0, -side / 2), 64, 64, 64);
+		this.surface[right_1].vertex[2] = new Vertex3D(new Vec3(0, -side / sqrt(2), side / 2), 64, 64, 64);
+
+		this.surface[right_2].vertex[0] = new Vertex3D(new Vec3(0, -side / sqrt(2), side / 2), 64, 64, 64);
+		this.surface[right_2].vertex[1] = new Vertex3D(new Vec3(side / sqrt(2), 0, -side / 2), 64, 64, 64);
+		this.surface[right_2].vertex[2] = new Vertex3D(new Vec3(side / sqrt(2), 0, side / 2), 64, 64, 64);
+
+		this.surface[front_1].vertex[2] = new Vertex3D(new Vec3(-side / sqrt(2), 0, -side / 2), R, G, B);
+		this.surface[front_1].vertex[1] = new Vertex3D(new Vec3(side / sqrt(2), 0, side / 2), R, G, B);
+		this.surface[front_1].vertex[0] = new Vertex3D(new Vec3(-side / sqrt(2), 0, side / 2), R, G, B);
+
+		this.surface[front_2].vertex[0] = new Vertex3D(new Vec3(side / sqrt(2), 0, -side / 2), R, G, B);
+		this.surface[front_2].vertex[1] = new Vertex3D(new Vec3(-side / sqrt(2), 0, -side / 2), R, G, B);
+		this.surface[front_2].vertex[2] = new Vertex3D(new Vec3(side / sqrt(2), 0, side / 2), R, G, B);
+	}
+    this.Rotate=function(XAcross, YAcross, angle)
+	{
+		for (var i = 0; i < 8; i++) this.surface[i].Rotate(XAcross, YAcross, angle);
+	}
+    this.GetCopyBMR=function()
+    {
+        var result=new BlockMagicRuler(0,false,this.pos,this.anchor,0,0,0);
+        for(var i=0;i<8;i++)
+        {
+            result.surface[i]=this.surface[i].GetCopyT3D();
+        }
+        return result;
+    }
+}
+
+function MagicRuler(nums,side,pos,R,G,B)
+{
+    this.centerBlock=parseInt(nums/2);
+    this.pos=pos;
+    this.blocks=new Array(nums);
+    for(var i=0;i<nums;i++)
+    {
+        if(i%2)
+        {
+            this.blocks[i]=new BlockMagicRuler(side, true, new Vec3(0, 0, 0), new Vec3(-side * sqrt(2) / 4, -side * sqrt(2) / 4, 0),R,G,B);
+        }
+        else
+        {
+            this.blocks[i]=new BlockMagicRuler(side, false, new Vec3(0, 0, 0), new Vec3(-side * sqrt(2) / 4, side * sqrt(2) / 4, 0),R,G,B);
+        }
+    }
+    this.Rotate=function(blockId, isLeft, angle)
+	{
+		// blockId 固定住，对 blockId 的左或者右拧动
+		// 旋转后锚点要改变
+		// 如果关于左边旋转
+		// 中心块假如被转就对全体逆转一次
+		var XA, YA;
+		if (isLeft)
+		{
+			XA = (this.blocks[blockId].surface[left_1].vertex[1].pos.Sub(this.blocks[blockId].surface[left_1].vertex[0].pos)).GetUnitVector();
+			YA = (this.blocks[blockId].surface[left_1].vertex[2].pos.Sub(this.blocks[blockId].surface[left_1].vertex[0].pos)).GetUnitVector();
+			for (var i = blockId - 1; i >= 0; i--)
+			{
+				this.blocks[i].Rotate(XA, YA, angle);
+				this.blocks[i].anchor = RotateVec3(this.blocks[i].anchor, XA, YA, angle);
+			}
+		}
+		// 如果关于右边旋转
+		else
+		{
+			XA = (this.blocks[blockId].surface[right_1].vertex[1].pos.Sub(this.blocks[blockId].surface[right_1].vertex[0].pos)).GetUnitVector();
+			YA = (this.blocks[blockId].surface[right_1].vertex[2].pos.Sub(this.blocks[blockId].surface[right_1].vertex[0].pos)).GetUnitVector();
+			for (var i = blockId + 1; i < this.blocks.length; i++)
+			{
+				this.blocks[i].Rotate(XA, YA, angle);
+				this.blocks[i].anchor = RotateVec3(this.blocks[i].anchor, XA, YA, angle);
+			}
+		}
+	}
+    this.TempRotate=function(blockId, isLeft, angle)
+	{
+		var result=new MagicRuler(this.blocks.length,0,this.pos,0,0,0);
+		for(var i=0;i<this.blocks.length;i++)
+        {
+            result.blocks[i]=this.blocks[i].GetCopyBMR();
+        }
+		result.centerBlock = blockId;
+		var pos = this.blocks[this.centerBlock].pos.GetCopyVec3();
+		if (blockId < this.centerBlock)
+		{
+			for (var i = this.centerBlock - 1; i >= blockId; i--)
+			{
+				pos = pos.Sub((this.blocks[i].surface[front_1].vertex[1].pos.Sub(this.blocks[i].surface[front_1].vertex[0].pos)).Div(2));
+			}
+		}
+		else
+		{
+			for (var i = this.centerBlock; i < blockId; i++)
+			{
+				pos = pos.Add((this.blocks[i].surface[front_1].vertex[1].pos.Sub(this.blocks[i].surface[front_1].vertex[0].pos)).Div(2));
+			}
+		}
+		result.pos = pos;
+		var XA, YA;
+		if (isLeft)
+		{
+			XA = (this.blocks[blockId].surface[left_1].vertex[1].pos.Sub(this.blocks[blockId].surface[left_1].vertex[0].pos)).GetUnitVector();
+			YA = (this.blocks[blockId].surface[left_1].vertex[2].pos.Sub(this.blocks[blockId].surface[left_1].vertex[0].pos)).GetUnitVector();
+			for (var i = blockId - 1; i >= 0; i--)
+			{
+				result.blocks[i].Rotate(XA, YA, angle);
+				result.blocks[i].anchor = RotateVec3(this.blocks[i].anchor, XA, YA, angle);
+			}
+		}
+		// 如果关于右边旋转
+		else
+		{
+			XA = (this.blocks[blockId].surface[right_1].vertex[1].pos.Sub(this.blocks[blockId].surface[right_1].vertex[0].pos)).GetUnitVector();
+			YA = (this.blocks[blockId].surface[right_1].vertex[2].pos.Sub(this.blocks[blockId].surface[right_1].vertex[0].pos)).GetUnitVector();
+			for (var i = blockId + 1; i < this.blocks.length; i++)
+			{
+				result.blocks[i].Rotate(XA, YA, angle);
+				result.blocks[i].anchor = RotateVec3(this.blocks[i].anchor, XA, YA, angle);
+			}
+		}
+		return result;
+	}
+}
+
+// 绘画三维三角形
+function DrawTriangle3D(tri, XAcross, YAcross, pericenter)
+{
+	var Z_Across = XAcross.CrossMul(YAcross);
+	var normalVec = (tri.vertex[1].pos.Sub(tri.vertex[0].pos)).CrossMul(tri.vertex[2].pos.Sub(tri.vertex[0].pos));
+	if (Z_Across.Mul(normalVec) > 0)
+        TransformTri3DToTri2D(tri,XAcross,YAcross,pericenter).Draw();
+}
+
+// 画魔尺块
+function DrawBlockMagicRuler(bmr, XAcross, YAcross, pericenter)
+{
+    var temp=new Triangle3D(0,0,0);
+	for (var i = 0; i < 8; i++)
+	{
+        temp.vertex[0]=new Vertex3D(bmr.surface[i].vertex[0].pos.Sub(bmr.anchor).Add(bmr.pos), bmr.surface[i].vertex[0].R, bmr.surface[i].vertex[0].G,
+			bmr.surface[i].vertex[0].B);
+        temp.vertex[1]=new Vertex3D(bmr.surface[i].vertex[1].pos.Sub(bmr.anchor).Add(bmr.pos), bmr.surface[i].vertex[1].R, bmr.surface[i].vertex[1].G,
+            bmr.surface[i].vertex[1].B);
+        temp.vertex[2]=new Vertex3D(bmr.surface[i].vertex[2].pos.Sub(bmr.anchor).Add(bmr.pos), bmr.surface[i].vertex[2].R, bmr.surface[i].vertex[2].G,
+            bmr.surface[i].vertex[2].B);
+        DrawTriangle3D(temp,XAcross,YAcross,pericenter);
+	}
+}
+
+// 画魔尺
+function DrawMagicRuler(mr, XAcross, YAcross, pericenter)
+{
+	// 以中心块开始，计算其他所有块的位置
+	var pos = mr.pos.GetCopyVec3();
+	for (var i = mr.centerBlock; i < mr.blocks.length; i++)
+	{
+		var temp = mr.blocks[i].GetCopyBMR();        // 这里需要拷贝
+		temp.pos = pos.GetCopyVec3();
+		pos = pos.Add(temp.surface[front_1].vertex[1].pos.Sub(temp.surface[front_1].vertex[0].pos).Div(2));
+		DrawBlockMagicRuler(temp, XAcross, YAcross, pericenter);
+	}
+	pos = mr.pos.GetCopyVec3();
+	for (var i = mr.centerBlock - 1; i >= 0; i--)
+	{
+		var temp = mr.blocks[i].GetCopyBMR();
+		pos = pos.Sub(temp.surface[front_1].vertex[1].pos.Sub(temp.surface[front_1].vertex[0].pos).Div(2));
+		temp.pos = pos.GetCopyVec3();
+		DrawBlockMagicRuler(temp, XAcross, YAcross, pericenter);
+	}
+}
+
+// 判断是否在魔尺内
+function isInBlockMagicRuler(bmr, XAcross, YAcross, pericenter, pos)
+{
+	var ZAcross = XAcross.CrossMul(YAcross);
+	var minDepth = -1;
+	for (var i = 0; i < 8; i++)
+	{
+		var normalVec = (bmr.surface[i].vertex[1].pos.Sub(bmr.surface[i].vertex[0].pos)).
+        CrossMul(bmr.surface[i].vertex[2].pos.Sub(bmr.surface[i].vertex[0].pos));
+		if (ZAcross.Mul(normalVec) > 0)
+		{
+            var tri=TransformTri3DToTri2D(bmr.surface[i],XAcross,YAcross,pericenter);
+			if (tri.isInTriangle(pos))
+			{
+				if (minDepth != -1)
+					minDepth = min(minDepth, tri.GetDepth(pos));
+				else
+					minDepth = tri.GetDepth(pos);
+			}
+		}
+	}
+	return minDepth;
+}
+
+// 获得选中的魔尺块下标
+function GetSelectBlock(mr, XAcross, YAcross, pericenter, point)
+{
+	var result = -1;
+	var minDepth = -1;
+	var pos = mr.pos.GetCopyVec3();
+	for (var i = mr.centerBlock; i < mr.blocks.length; i++)
+	{
+		var temp = mr.blocks[i].GetCopyBMR();
+		temp.pos = pos.GetCopyVec3();
+		for (var j = 0; j < 8; j++)
+		{
+			temp.surface[j].vertex[0].pos = temp.surface[j].vertex[0].pos.Sub(temp.anchor).Add(temp.pos);
+			temp.surface[j].vertex[1].pos = temp.surface[j].vertex[1].pos.Sub(temp.anchor).Add(temp.pos);
+			temp.surface[j].vertex[2].pos = temp.surface[j].vertex[2].pos.Sub(temp.anchor).Add(temp.pos);
+		}
+		pos = pos.Add(temp.surface[front_1].vertex[1].pos.Sub(temp.surface[front_1].vertex[0].pos).Div(2));
+		var tempDepth = isInBlockMagicRuler(temp, XAcross, YAcross, pericenter, point);
+		if (tempDepth > 0 && (minDepth < 0 || tempDepth < minDepth))
+		{
+			minDepth = tempDepth;
+			result = i;
+		}
+	}
+	pos = mr.pos.GetCopyVec3();
+	for (var i = mr.centerBlock - 1; i >= 0; i--)
+	{
+		var temp = mr.blocks[i].GetCopyBMR();
+		pos = pos.Sub(temp.surface[front_1].vertex[1].pos.Sub(temp.surface[front_1].vertex[0].pos).Div(2));
+		temp.pos = pos.GetCopyVec3();
+		for (var j = 0; j < 8; j++)
+		{
+			temp.surface[j].vertex[0].pos = temp.surface[j].vertex[0].pos.Sub(temp.anchor).Add(temp.pos);
+			temp.surface[j].vertex[1].pos = temp.surface[j].vertex[1].pos.Sub(temp.anchor).Add(temp.pos);
+			temp.surface[j].vertex[2].pos = temp.surface[j].vertex[2].pos.Sub(temp.anchor).Add(temp.pos);
+		}
+		var tempDepth = isInBlockMagicRuler(temp, XAcross, YAcross, pericenter, point);
+		if (tempDepth > 0 && (minDepth < 0 || tempDepth < minDepth))
+		{
+			minDepth = tempDepth;
+			result = i;
+		}
+	}
+	return result;
+}
+
+var pericenter;
+var XAcross;
+var YAcross;
+var mr;
+var selectBlock = -1;
+var tempMr;
+var mr_nums=24;
+var mr_side=20;
+var mr_colorR=255;
+var mr_colorG=0;
+var mr_colorB=0;
+
+function ParseColor(color)
+{
+    var result=color.split(" ");
+    return [parseInt(result[0]),parseInt(result[1]),parseInt(result[2])];
+}
+
+function ResetMagicRuler(nums,side,color)
+{
+    if(!isNaN(nums))
+    mr_nums=nums;
+    if(!isNaN(side))
+    mr_side=side;
+    var colors=ParseColor(color);
+    if(0<colors.length&&!isNaN(colors[0])&&colors[0]>=0&&colors[0]<256)
+    mr_colorR=colors[0];
+    if(1<colors.length&&!isNaN(colors[1])&&colors[1]>=0&&colors[1]<256)
+    mr_colorG=colors[1];
+    if(2<colors.length&&!isNaN(colors[2])&&colors[2]>=0&&colors[2]<256)
+    mr_colorB=colors[2];
+    mr=new MagicRuler(mr_nums,mr_side,new Vec3(0,0,0),mr_colorR,mr_colorG,mr_colorB);
+    cleardevice();
+    InitDepthMap();
+    DrawMagicRuler(mr,XAcross,YAcross,pericenter);
+}
+
+function Confirm()
+{
+    var Nums=document.getElementById("bmr_nums");
+    var Side=document.getElementById("bmr_side");
+    var Color=document.getElementById("bmr_color");
+    ResetMagicRuler(parseInt(Nums.value),parseInt(Side.value),Color.value);
+    ShowFundamentalMessage();
+}
+
+function ShowFundamentalMessage()
+{
+    var Nums=document.getElementById("text_nums");
+    var Side=document.getElementById("text_side");
+    var Color=document.getElementById("text_color");
+    Nums.innerText="魔尺块数量为:"+mr_nums;
+    Side.innerText="魔尺块尺寸为:"+mr_side;
+    Color.innerText="魔尺颜色为:"+TransformRGBToStr(mr_colorR,mr_colorG,mr_colorB);
+}
+
+function Main_Func()
+{
+    InitCanvas();
+    InitDepthMap();
+    var canvas=document.getElementById('canvas');
+    pericenter=new Vec2(canvas.width/2,canvas.height/2);
+    mr=new MagicRuler(mr_nums,mr_side,new Vec3(0,0,0),mr_colorR,mr_colorG,mr_colorB);
+    XAcross=new Vec3(1,0,0);
+    YAcross=new Vec3(0,1,0);
+    DrawMagicRuler(mr,XAcross,YAcross,pericenter);
+    ShowFundamentalMessage();
+}
+    </script>
+    <title>魔尺(Magic Ruler)</title>
+</head>
+<body>
+    <canvas id="canvas" width="640" height="480" onmousemove="MouseMove(event)"
+    onmousedown="MouseDown(event)" onmouseup="MouseUp(event)" onmousewheel="MouseWheel(event)">你的浏览器不支持canvas标签</canvas>
+    魔尺块数量:<input type="text" id="bmr_nums"><br>
+    魔尺块尺寸:<input type="text" id="bmr_side"><br>
+    魔尺块颜色:<input type="text" id="bmr_color"><br>
+    <button onclick="Confirm()">确定</button>
+    <div class="msg_nums">
+        <div class="msg_text" id="text_nums"></div>
+    </div>
+    <div class="msg_side">
+        <div class="msg_text" id="text_side"></div>
+    </div>
+    <div class="msg_color">
+        <div class="msg_text" id="text_color"></div>
+    </div>
+    <script>
+        Main_Func();
+    </script>
+</body>
+</html>
