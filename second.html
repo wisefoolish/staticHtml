@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .stop{
+            position: absolute;
+            left: 20%;
+            bottom: 0%;
+            height: 10%;
+            width: 10%;
+        }
+        .start{
+            position: absolute;
+            left: 0%;
+            bottom: 0%;
+            height: 10%;
+            width: 10%;
+        }
+        .confirm{
+            position: absolute;
+            right: 0%;
+            bottom: 0%;
+            height: 10%;
+            width: 10%;
+        }
+        .InputBox{
+            position: absolute;
+            left: 40%;
+            bottom: 0%;
+        }
+    </style>
+    <script>
+        var background_color='#000000';
+var line_color='#ffffff';
+var fill_color='#ffffff';
+var text_font='20px "微软雅黑"';
+var text_color="#ffffff";
+const PI=3.1415926536;
+var width=0;
+var height=0;
+
+var timer;
+var isCount=false;
+var millisecond=0;
+function FillRectangle(pericenter,size)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");            
+    var left=pericenter.xx-size.width/2;
+    var top=pericenter.yy-size.height/2;
+    var right=pericenter.xx+size.width/2;
+    var bottom=pericenter.yy+size.height/2;
+    hdc.fillStyle=fill_color;
+    hdc.beginPath();
+    hdc.moveTo(left,top);
+    hdc.lineTo(right,top);
+    hdc.lineTo(right,bottom);
+    hdc.lineTo(left,bottom);
+    hdc.lineTo(left,top);
+    hdc.fill();
+}
+// 画圆形
+function Circle(pericenter,radius)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.strokeStyle=line_color;
+    hdc.beginPath();
+    hdc.arc(pericenter.xx,pericenter.yy,radius,0,2*Math.PI,true);
+    //hdc.closePath();
+    hdc.stroke();
+}
+// 画线
+function Line(begin,end)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.strokeStyle=line_color;
+    hdc.beginPath();
+    hdc.moveTo(begin.xx,begin.yy);
+    hdc.lineTo(end.xx,end.yy);
+    hdc.stroke();
+}
+//画文字
+function OutText(x,y,text)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.font=text_font;
+    hdc.fillStyle = text_color;
+	hdc.textBaseline = "middle";
+    hdc.textAlign="center";
+	hdc.fillText(text, x, y);
+}
+// 画多边形
+function Polygon(pointarr)
+{
+    var canvas=document.getElementById('canvas');
+    var hdc=canvas.getContext("2d");
+    hdc.strokeStyle=line_color;
+    hdc.beginPath();
+    hdc.moveTo(pointarr[0].xx,pointarr[0].yy);
+    for(var i=1;i<=pointarr.length;i++)
+    {
+        var temp=pointarr[i%pointarr.length];
+        hdc.lineTo(temp.xx,temp.yy);
+    }
+    hdc.stroke();
+}
+
+function cleardevice()
+{
+    var canvas=document.getElementById('canvas');
+    var width=canvas.width;
+    var height=canvas.height;
+    fill_color=background_color;
+    FillRectangle({xx:width/2,yy:height/2},{width:width,height:height});
+}
+
+function CreateCanvas()
+{
+    var can=document.createElement("canvas");
+    width=window.innerWidth;
+    height=window.innerHeight*0.8;
+    can.width=width;
+    can.height=height;
+    can.id="canvas";
+    document.getElementsByTagName("body")[0].appendChild(can);
+    cleardevice();
+}
+
+function DrawBigClock()
+{
+    var radius=Math.min(width,height)/2;
+    line_color="#ffffff";
+    Circle({xx:width/2,yy:height/2},radius);
+    var length=0.85;
+    var times=30;
+    text_font=radius*0.05+"px '微软雅黑'";
+    for(var i=0;i<times;i++)
+    {
+        var x=radius*length*Math.cos(PI*2/times*i-PI/2);
+        var y=radius*length*Math.sin(PI*2*i/times-PI/2);
+        var x1=radius*Math.cos(PI*2/times*i-PI/2);
+        var y1=radius*Math.sin(PI*2*i/times-PI/2);
+        Line({xx:width/2+x,yy:height/2+y},{xx:width/2+x1,yy:height/2+y1});
+        if(i%2==0)
+        OutText(width/2+x,height/2+y,i.toString());
+        else
+        OutText(width/2+x,height/2+y,(i+30).toString());
+    }
+    length=0.95;
+    times=300;
+    for(var i=0;i<times;i++)
+    {
+        var x=radius*length*Math.cos(PI*2/times*i);
+        var y=radius*length*Math.sin(PI*2*i/times);
+        var x1=radius*Math.cos(PI*2/times*i);
+        var y1=radius*Math.sin(PI*2*i/times);
+        Line({xx:width/2+x,yy:height/2+y},{xx:width/2+x1,yy:height/2+y1});
+    }
+    length=0.9;
+    times=60;
+    for(var i=0;i<times;i++)
+    {
+        var x=radius*length*Math.cos(PI*2/times*i);
+        var y=radius*length*Math.sin(PI*2*i/times);
+        var x1=radius*Math.cos(PI*2/times*i);
+        var y1=radius*Math.sin(PI*2*i/times);
+        Line({xx:width/2+x,yy:height/2+y},{xx:width/2+x1,yy:height/2+y1});
+    }
+}
+
+function DrawSmallClock()
+{
+    var radius=Math.min(width,height)*0.2;
+    var middleX=width/2;
+    var middleY=height/2-radius/2;
+    line_color="#ffffff";
+    Circle({xx:middleX,yy:middleY},radius);
+    var length=0.9;
+    var times=15;
+    text_font=radius*0.1+"px '微软雅黑'";
+    for(var i=0;i<times;i++)
+    {
+        var x=radius*length*Math.cos(PI*2/times*i-PI/2);
+        var y=radius*length*Math.sin(PI*2*i/times-PI/2);
+        var x1=radius*Math.cos(PI*2/times*i-PI/2);
+        var y1=radius*Math.sin(PI*2*i/times-PI/2);
+        Line({xx:middleX+x,yy:middleY+y},{xx:middleX+x1,yy:middleY+y1});
+        OutText(middleX+x,middleY+y,i.toString());
+    }
+    length=0.95;
+    times=30;
+    for(var i=0;i<times;i++)
+    {
+        var x=radius*length*Math.cos(PI*2/times*i-PI/2);
+        var y=radius*length*Math.sin(PI*2*i/times-PI/2);
+        var x1=radius*Math.cos(PI*2/times*i-PI/2);
+        var y1=radius*Math.sin(PI*2*i/times-PI/2);
+        Line({xx:middleX+x,yy:middleY+y},{xx:middleX+x1,yy:middleY+y1});
+    }
+}
+
+function DrawBigPointer(rate)
+{
+    var radius=Math.min(width,height)/2;
+    var LongLength=0.9;
+    var ShortLength=0.2;
+    line_color="#ff0000";
+    Circle({xx:width/2,yy:height/2},radius*0.1);
+    var p1={xx:width/2+radius*ShortLength*Math.cos(rate*PI*2),yy:height/2+radius*ShortLength*Math.sin(rate*PI*2)};
+    var p2={xx:width/2+radius*ShortLength*Math.cos(rate*PI*2+PI/2),yy:height/2+radius*ShortLength*Math.sin(rate*PI*2+PI/2)};
+    var p3={xx:width/2+radius*ShortLength*Math.cos(rate*PI*2+PI),yy:height/2+radius*ShortLength*Math.sin(rate*PI*2+PI)};
+    var p4={xx:width/2+radius*LongLength*Math.cos(rate*PI*2-PI/2),yy:height/2+radius*LongLength*Math.sin(rate*PI*2-PI/2)};
+    Polygon([p1,p2,p3,p4]);
+}
+
+function DrawSmallPointer(rate)
+{
+    var radius=Math.min(width,height)*0.2;
+    var middleX=width/2;
+    var middleY=height/2-radius/2;
+    var LongLength=0.9;
+    var ShortLength=0.2;
+    line_color="#00ff00";
+    Circle({xx:middleX,yy:middleY},radius*0.1);
+    var p1={xx:middleX+radius*ShortLength*Math.cos(rate*PI*2),yy:middleY+radius*ShortLength*Math.sin(rate*PI*2)};
+    var p2={xx:middleX+radius*ShortLength*Math.cos(rate*PI*2+PI/2),yy:middleY+radius*ShortLength*Math.sin(rate*PI*2+PI/2)};
+    var p3={xx:middleX+radius*ShortLength*Math.cos(rate*PI*2+PI),yy:middleY+radius*ShortLength*Math.sin(rate*PI*2+PI)};
+    var p4={xx:middleX+radius*LongLength*Math.cos(rate*PI*2-PI/2),yy:middleY+radius*LongLength*Math.sin(rate*PI*2-PI/2)};
+    Polygon([p1,p2,p3,p4]);
+}
+
+function DrawClock(mis)
+{
+    DrawBigClock();
+    DrawSmallClock();
+    var rateBig=(mis%30000)/30000;
+    DrawBigPointer(rateBig);
+    var rateSmall=(mis%900000)/900000;
+    DrawSmallPointer(rateSmall);
+}
+
+function CountAction()
+{
+    millisecond+=50;
+    cleardevice();
+    DrawClock(millisecond);
+}
+
+function Begin()
+{
+    if(!isCount)
+    {
+        timer=setInterval(CountAction,50);
+        isCount=true;
+        millisecond=0;
+        document.getElementsByClassName("stop")[0].innerText="停止";
+    }
+}
+
+function Stop()
+{
+    if(isCount)
+    {
+        clearInterval(timer);
+        isCount=false;
+        document.getElementsByClassName("stop")[0].innerText="继续";
+    }
+    else
+    {
+        timer=setInterval(CountAction,50);
+        isCount=true;
+        document.getElementsByClassName("stop")[0].innerText="停止";
+    }
+}
+
+function Confirm()
+{
+    var strs=document.getElementById("second").value;
+    var regex = /^\d+\.\d+$/;
+    if(!regex.test(strs))
+    {
+        alert("抱歉答错啰，注意要精确到小数点后两位");
+        return;
+    }
+    var inputs=parseFloat(document.getElementById("second").value);
+    if(inputs-(millisecond/1000)<=0.01)
+    {
+        alert("恭喜你答对了");
+    }
+    else
+    {
+        alert("抱歉答错啰");
+    }
+}
+    </script>
+</head>
+<body>
+    <button class="stop" onclick="Stop()">停止</button>
+    <button class="start" onclick="Begin()">开始</button>
+    <button class="confirm" onclick="Confirm()">确定</button>
+    <div class="InputBox">
+        此停表的读数为：<input type="text" id="second">s
+    </div>
+    <script>
+        CreateCanvas();
+        DrawClock(0);
+    </script>
+</body>
+</html>
